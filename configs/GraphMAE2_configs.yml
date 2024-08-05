@@ -1,0 +1,221 @@
+graphalign:
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  weight_decay_f: 1e-4   
+  max_epoch_f: 1000
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  optimizer: adamw
+  alpha_l: 3  #3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5.0  #5
+  delayed_ema_epoch: 0 #0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+ogbn-arxiv:
+  lr: 0.0025
+  lr_f: 0.005
+  num_hidden: 1024
+  num_heads: 4 
+  num_out_heads: 1
+  weight_decay: 0.06
+  weight_decay_f: 1e-4
+  max_epoch: 60 
+  max_epoch_f: 1000
+  batch_size: 512
+  batch_size_f: 256
+  mask_rate: 0.5
+  num_layers: 4
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.1
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  drop_edge_rate: 0.5
+  optimizer: adamw
+  alpha_l: 6
+  scheduler: True
+  remask_method: random
+  momentum: 0.999 
+  lam: 10.0
+  delayed_ema_epoch: 20 
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+ogbn-products:
+  lr: 0.001
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  weight_decay: 0.04
+  weight_decay_f: 1e-4  
+  max_epoch: 10 
+  max_epoch_f: 1000
+  batch_size: 512
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  drop_edge_rate: 0.0
+  optimizer: adamw
+  alpha_l: 3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5.0
+  delayed_ema_epoch: 0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+ogbn-papers100M:
+  lr: 0.001
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  weight_decay: 0.04
+  weight_decay_f: 0
+  max_epoch: 10
+  max_epoch_f: 1000
+  batch_size: 512
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  drop_edge_rate: 0.5
+  optimizer: adamw
+  alpha_l: 3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5
+  delayed_ema_epoch: 0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+Cora:
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  weight_decay_f: 1e-4   #0
+  max_epoch_f: 1000
+  
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  optimizer: adamw
+  alpha_l: 3  #3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5.0  #5
+  delayed_ema_epoch: 0 #0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+
+WN18RR:
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  weight_decay_f: 1e-4   #0
+  max_epoch_f: 1000
+  
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  
+  optimizer: adamw
+  alpha_l: 3  #3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5.0  #5
+  delayed_ema_epoch: 0 #0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+FB15K237:
+  
+  lr_f: 0.001
+  num_hidden: 1024
+  num_heads: 4
+  num_out_heads: 1
+  num_layers: 4
+  
+  weight_decay_f: 1e-4   #0
+  
+  max_epoch_f: 1000
+  
+  batch_size_f: 256
+  mask_rate: 0.5
+  encoder: gat
+  decoder: gat
+  activation: prelu
+  attn_drop: 0.2
+  linear_prob: True
+  in_drop: 0.2
+  loss_fn: sce
+  
+  optimizer: adamw
+  alpha_l: 3  #3
+  scheduler: True
+  remask_method: random
+  momentum: 0.996
+  lam: 5.0  #5
+  delayed_ema_epoch: 0 #0
+  num_remasking: 3
+  residual: True
+  norm: layernorm
+
+
