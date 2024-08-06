@@ -494,7 +494,7 @@ if __name__ == "__main__":
         elif dn in ["FB15K237","Cora","WN18RR"]:
             args.dataset_name = dn
             Gen_fewshot_data(args)
-    shutil.rmtree("./fewshot_data")
+    
     
 
 

@@ -1,13 +1,16 @@
+Device=$1
+Data_dir=$2
+GNN_checkpoint_path=$3
 
 python main_ssl_gnn_train.py \
 --dataset FB15K237 \
 --model graphmae \
 --use_cfg \
---device 0 \
+--device $Device \
 --pretrain_seed 0 \
 --load_model \
---load_model_path  GNN_checkpoint_path  \
---data_dir data_dir_path \
+--load_model_path  $GNN_checkpoint_path  \
+--data_dir $Data_dir \
 --moe \
 --moe_use_linear \
 --top_k 1  \

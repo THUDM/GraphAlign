@@ -1,15 +1,17 @@
+Device=$1
+Data_dir=$2
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 echo "Using deepspeed"
 #localhost: gpu1,gpu2,gpu3,..
 
 # graphalign GraphMAE on three dataset
-deepspeed --include=localhost:0,1 --master_port ${MASTER_PORT} main_ssl_gnn_train.py --deepspeed --deepspeed_config ./configs/ds_config.json \
+deepspeed --include=localhost:$Device --master_port ${MASTER_PORT} main_ssl_gnn_train.py --deepspeed --deepspeed_config ./configs/ds_config.json \
 --dataset graphalign \
 --model graphmae \
 --use_cfg \
 --device 0 \
 --pretrain_seed 0 \
---data_dir data_dir_path \
+--data_dir $Data_dir \
 --pretrain_dataset ogbn-arxiv  ogbn-products ogbn-papers100M   \
 --lr  0.0002  \
 --weight_decay 0.04 \

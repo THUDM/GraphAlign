@@ -1,4 +1,6 @@
-export CUDA_VISIBLE_DEVICES=0
+Device=$1
+Data_dir=$2
+export CUDA_VISIBLE_DEVICES=$Device
 
 # graphmae ogbn-arxiv
 python main_ssl_gnn_train.py \
@@ -7,7 +9,7 @@ python main_ssl_gnn_train.py \
 --use_cfg \
 --device 0 \
 --pretrain_seed 0  \
---data_dir data_dir_path \
+--data_dir $Data_dir \
 --pretrain_dataset ogbn-arxiv \
 --dataset_drop_edge ogbn-arxiv  \
 --drop_edge_rate 0.0 \
