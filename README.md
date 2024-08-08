@@ -24,7 +24,7 @@ For Large scale graphs, before starting mini-batch training, you'll need to gene
  	--dataset_name ogbn-arxiv ogbn-products ogbn-papers100M FB15K237 Cora WN18RR
  ````
 
-And we also provide the pre-generated local clusters which can be downloaded [here](https://cloud.tsinghua.edu.cn/d/64f859f389ca43eda472/) (coming soon) for usage.
+And we also provide the pre-generated local clusters which can be downloaded [here](https://cloud.tsinghua.edu.cn/d/ab2d7eb8ff524554b926/) (coming soon) for usage.
 
 ## Quick Start
 

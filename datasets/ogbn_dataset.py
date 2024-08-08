@@ -24,14 +24,13 @@ def convert_1d_array_to_ego_graph_list(path_or_data, salt=-200000000):
     return ego_graphs
 
 class papers100M_feat_type:
-    def __init__(self,feat_path, node_repeat_path):
-        #self.feats = np.load(feat_path, mmap_mode="r") 
-        node_used = np.load(node_repeat_path)[:,0].reshape(-1) 
+    def __init__(self,feats, node_used_path):
+        node_used = np.load(node_used_path)
         node_used = np.sort(node_used)
         self.mapping ={}
         for idx, n in enumerate(node_used):
             self.mapping[n] = idx 
-        self.feats = torch.tensor(np.load(feat_path),dtype=torch.float16)
+        self.feats = feats
 
     def __call__(self,index):
         idxs = [self.mapping[idx] for idx in index]
@@ -39,33 +38,28 @@ class papers100M_feat_type:
         return x.to(torch.float32)
 
 def load_large_dataset(dataset_name, data_dir, ego_graphs_file_path, no_scale, multi_scale, feat_type="e5_float16",drop_model="random"):
-    #data_dir = "../TAG-data"
     short_name = {"ogbn-papers100M":"100M","ogbn-arxiv":"arxiv","ogbn-products":"products"}
     if dataset_name.startswith("ogbn") and dataset_name!="ogbn-papers100M":
-        ogb_official_path = os.path.join(data_dir, "ogb-official-data")
         graph_path = os.path.join(data_dir, dataset_name, f"dgl_graph_{short_name[dataset_name]}_int32") 
         feats_path = os.path.join(data_dir, dataset_name, f"{short_name[dataset_name]}_embedding_{feat_type}.npy")         
-        scale_path = os.path.join(data_dir, dataset_name, f"ogb_{dataset_name}_stats.pt") 
+        scale_path = os.path.join(data_dir, dataset_name, f"{dataset_name}_stats.pt") 
         ego_graphs_file_path = os.path.join(data_dir, dataset_name, f"{dataset_name}-lc-ego-graphs-256.pt") 
+        label_path = os.path.join(data_dir, dataset_name, f'{short_name[dataset_name]}_label.pt')
+        split_path = os.path.join(data_dir, dataset_name, f'{short_name[dataset_name]}_split.pt')
     
-        dataset = DglNodePropPredDataset(dataset_name, root=ogb_official_path)
-        graph, label = dataset[0]
-
-        graph = dgl.load_graphs(graph_path)[0][0]
-        
+        graph = dgl.load_graphs(graph_path)[0][0]    
         if "feat" in graph.ndata:
             del graph.ndata["feat"]
         if "year" in graph.ndata:
             del graph.ndata["year"]
-
         if dataset_name == "ogbn-arxiv" and drop_model== "random":
-            graph = preprocess(graph)
-
+            graph = dgl.to_bidirected(graph)        
         graph = graph.remove_self_loop().add_self_loop()
-        split_idx = dataset.get_idx_split()
-        labels = label.view(-1)
+
+        split_idx = torch.load(split_path)
         
-        print(f"loading {dataset_name} feats dtype is {feat_type}")
+        labels = torch.load(label_path)
+        
         if "float16" in feat_type:
             feats = torch.tensor(np.load(feats_path),dtype=torch.float16) 
         else:
@@ -85,51 +79,64 @@ def load_large_dataset(dataset_name, data_dir, ego_graphs_file_path, no_scale, m
         val_lbls = labels[split_idx["valid"]]
         test_lbls = labels[split_idx["test"]]
         labels = torch.cat([train_lbls, val_lbls, test_lbls])
+
         nodes = torch.load(ego_graphs_file_path) 
         return feats, graph, labels, split_idx, nodes
+        
  
     elif dataset_name=="ogbn-papers100M":
-        memory_before_load = show_occupied_memory()
-        if no_scale == False:
-            feat_path = os.path.join(data_dir, dataset_name, "papers100M_embedding_e5_float16_centered_reduced_trvate.npy")
-        else:
-            feat_path = os.path.join(data_dir, dataset_name, "papers100M_embedding_e5_float16_reduced_trvate.npy")
+        feats_path = os.path.join(data_dir, dataset_name, f"100M_embedding_{feat_type}_used.npy")
         lable_path = os.path.join(data_dir, dataset_name, "100M-node-label.npz")
-        node_repeat_count_path = os.path.join(data_dir, dataset_name, "node_repeat_count.npy")
-        ego_graph_path = os.path.join(data_dir, dataset_name, f"{dataset_name}-lc-ego-graphs-256-int32.npy")
-       
-        if drop_model == "directed_to_undirected":  
-            graph_path = os.path.join(data_dir, dataset_name, f"dgl_reduced_graph_{short_name[dataset_name]}_int32")
-        else:
-            graph_path = os.path.join(data_dir, dataset_name, f"dgl_reduced_graph_{short_name[dataset_name]}_add_biedge_int32")
-  
+        used_node_path = os.path.join(data_dir, dataset_name, "used_node.npy")
+        scale_path = os.path.join(data_dir, dataset_name, f"{dataset_name}_stats.pt") 
+        #graph
+        graph_path = os.path.join(dataset_path, f"dgl_graph_100M_int32_used")
         graph =  dgl.load_graphs(graph_path)[0][0]
         if "year" in graph.ndata:
             del graph.ndata["year"]
-        
+        if drop_model != "directed_to_undirected": 
+            graph = dgl.to_bidirected(graph)        
         graph = graph.remove_self_loop().add_self_loop()
-        #print(f"graph memory usage: {show_occupied_memory()-memory_before_load:.2f} MB")
-    
-        feats = papers100M_feat_type(feat_path, node_repeat_count_path)
 
+        #feat
+        if "float16" in feat_type:
+            feats = torch.tensor(np.load(feats_path),dtype=torch.float16) 
+        else:
+            feats = torch.tensor(np.load(feats_path),dtype=torch.float32) 
+        if feat_type=="e5_float16":
+            _mean, _ = torch.load(scale_path)
+            _mean = _mean.to(torch.float16)
+        if no_scale == False:
+            if feat_type=="e5_float16":
+                feats = feats - _mean
+            else: 
+                feats = center_feats(feats)
+    
+        feats = papers100M_feat_type(feats, used_node_path)
+
+        #split
         split_idx={}
         split_len={}
-        for name in ["train","valid","test"]:
+        for name in ["train","valid","test"]:  
             split_path = os.path.join(data_dir, dataset_name, f"{short_name[dataset_name]}_{name}_split.csv.gz")
             split_idx[name] = torch.from_numpy(pd.read_csv(split_path, compression='gzip',header=None).values.reshape(-1))
             split_len[name] = split_idx[name].shape[0]
-
+        #label
         labels = np.load(lable_path)
         labels = torch.from_numpy(labels["node_label"].reshape(-1)).int()
         train_lbls = labels[split_idx["train"]]
         val_lbls = labels[split_idx["valid"]]
         test_lbls = labels[split_idx["test"]]
         labels = torch.cat([train_lbls, val_lbls, test_lbls])
-    
-        ego_graphs = load_ego_graphs(ego_graph_path, max_samples=None)
-        ego_graphs = [ego_graphs[0:split_len["train"]],ego_graphs[split_len["train"]:split_len["train"]+split_len["valid"]],ego_graphs[split_len["train"]+split_len["valid"]:split_len["train"]+split_len["valid"]+split_len["test"]]]
-        #print(f"after load 100M memory usage: {show_occupied_memory():.2f} MB")
-    
+        #ego_graph
+        if os.path.exists(os.path.join(data_dir, dataset_name, f"{dataset_name}-lc-ego-graphs-256-int32.npy")):
+            ego_graph_path = os.path.join(data_dir, dataset_name, f"{dataset_name}-lc-ego-graphs-256-int32.npy")
+            ego_graphs = load_ego_graphs(ego_graph_path, max_samples=None)
+            ego_graphs = [ego_graphs[0:split_len["train"]],ego_graphs[split_len["train"]:split_len["train"]+split_len["valid"]],ego_graphs[split_len["train"]+split_len["valid"]:split_len["train"]+split_len["valid"]+split_len["test"]]]
+        else:
+            ego_graph_path = os.path.join(data_dir, dataset_name, f"{dataset_name}-lc-ego-graphs-256.pt") 
+            ego_graphs = torch.load(ego_graphs_file_path) 
+        
         return feats, graph, labels, split_idx, ego_graphs
         
     elif dataset_name in ["FB15K237", "WN18RR","Wiki","ConceptNet"]:

@@ -20,9 +20,10 @@ from collections import namedtuple
 import multiprocessing
 import os.path as osp
 import json
+from sklearn.preprocessing import StandardScaler
 
 MODEL_NAME={"e5":"intfloat/e5-small-v2", "ofa": "../../cache/transformer-model/multi-qa-distilbert-cos-v1"}
-
+short_name = {"ogbn-papers100M":"100M","ogbn-arxiv":"arxiv","ogbn-products":"products"}
 def decompress_gz(file_path, output_path):
     with gzip.open(file_path, 'rb') as f_in:
         with open(output_path, 'wb') as f_out:
@@ -51,6 +52,15 @@ def move_folder_contents(src_folder, dest_folder):
         dest_path = os.path.join(dest_folder, item)
         shutil.move(src_path, dest_path)
 
+def convert_1d_array_to_ego_graph_list(path_or_data, salt=-200000000):
+    if type(path_or_data) == str:
+        array = np.load(path_or_data)
+    else:
+        array = path_or_data
+    index = np.where(array < 0)[0]
+    array[index] -= salt
+    ego_graphs = np.split(array, index[1:])
+    return ego_graphs
 
 class Ogb_dataset(Dataset):
     def __init__(self, datas): 
@@ -107,14 +117,26 @@ def calc_local_clustering(args):
     conds = my_sweep_cut(graphlocal, node)
     return node, conds
 
+def norm_feats(x):
+    scaler = StandardScaler()
+    feats = x
+    scaler.fit(feats)
+    mean = scaler.mean_
+    std = scaler.scale_
+    return  mean, std
+
+
 class Gen_ogb_data():
     def __init__(self,args):
         self.args = args
         self.download_raw_data(args.dataset_name)
         self.get_text_data(args.dataset_name)
         self.get_emb(args.dataset_name)
+        self.get_graph_label_split_scale(args.dataset_name)
         self.localclustering(args.dataset_name)
-    
+        if args.dataset_name == "ogbn-papers100M":
+            self.reduce_100M_memory_cost(args.dataset_name)
+
     def average_pool(self, last_hidden_states,
                     attention_mask):
         last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
@@ -126,29 +148,38 @@ class Gen_ogb_data():
         os.makedirs(dataset_path, exist_ok=True)
         if dataset_name == "ogbn-arxiv":
             # downlaod ogbn-data raw text
-            url = "https://snap.stanford.edu/ogb/data/misc/ogbn_arxiv/titleabs.tsv.gz"
-            wget.download(url, os.path.join(dataset_path, "titleabs.tsv.gz"))
-            decompress_gz(os.path.join(dataset_path, "titleabs.tsv.gz"),os.path.join(dataset_path, "titleabs.tsv"))
-            os.remove(os.path.join(dataset_path, "titleabs.tsv.gz"))
+            if not os.path.exists(os.path.join(dataset_path, "titleabs.tsv")):
+                url = "https://snap.stanford.edu/ogb/data/misc/ogbn_arxiv/titleabs.tsv.gz"
+                wget.download(url, os.path.join(dataset_path, "titleabs.tsv.gz"))
+                decompress_gz(os.path.join(dataset_path, "titleabs.tsv.gz"),os.path.join(dataset_path, "titleabs.tsv"))
+                os.remove(os.path.join(dataset_path, "titleabs.tsv.gz"))
             self.dgl_dataset = DglNodePropPredDataset(dataset_name, root=os.path.join(self.args.data_save_path, "ogb-official-data"))
+
         elif dataset_name == "ogbn-products":
             # downlaod ogbn-data raw text
-            gdown.download("https://drive.google.com/uc?id=1gsabsx8KR2N9jJz16jTcA0QASXsNuKnN", os.path.join(dataset_path, "Amazon-3M.raw.zip"), quiet=False)
-            unzip_file(os.path.join(dataset_path, "Amazon-3M.raw.zip"), os.path.join(dataset_path, "Amazon-3M"))
-            decompress_gz(os.path.join(dataset_path, "Amazon-3M", "Amazon-3M.raw", "trn.json.gz"), os.path.join(dataset_path, "trn.json"))
-            decompress_gz(os.path.join(dataset_path, "Amazon-3M", "Amazon-3M.raw", "tst.json.gz"), os.path.join(dataset_path, "tst.json"))
-            os.remove(os.path.join(dataset_path, "Amazon-3M.raw.zip"))
-            shutil.rmtree(os.path.join(dataset_path, "Amazon-3M"))
+            if not os.path.exists(os.path.join(dataset_path, "tst.json")):
+                gdown.download("https://drive.google.com/uc?id=1gsabsx8KR2N9jJz16jTcA0QASXsNuKnN", os.path.join(dataset_path, "Amazon-3M.raw.zip"), quiet=False)
+                unzip_file(os.path.join(dataset_path, "Amazon-3M.raw.zip"), os.path.join(dataset_path, "Amazon-3M"))
+                decompress_gz(os.path.join(dataset_path, "Amazon-3M", "Amazon-3M.raw", "trn.json.gz"), os.path.join(dataset_path, "trn.json"))
+                decompress_gz(os.path.join(dataset_path, "Amazon-3M", "Amazon-3M.raw", "tst.json.gz"), os.path.join(dataset_path, "tst.json"))
+                os.remove(os.path.join(dataset_path, "Amazon-3M.raw.zip"))
+                shutil.rmtree(os.path.join(dataset_path, "Amazon-3M"))
             self.dgl_dataset = DglNodePropPredDataset(dataset_name, root=os.path.join(self.args.data_save_path, "ogb-official-data"))
-              
+
+        elif dataset_name == "ogbn-papers100M":
+            if not os.path.exists(os.path.join(dataset_path, "paperinfo")):
+                wget.download("https://snap.stanford.edu/ogb/data/misc/ogbn_papers100M/paperinfo.zip", os.path.join(dataset_path, "paperinfo.zip"))
+                unzip_file(os.path.join(dataset_path, "paperinfo.zip"), os.path.join(dataset_path, "paperinfo"))
+                os.remove(os.path.join(dataset_path, "paperinfo.zip"))
+            self.dgl_dataset = DglNodePropPredDataset(dataset_name, root=os.path.join(self.args.data_save_path, "ogb-official-data"))
+
     def get_text_data(self, dataset_name="ogbn-arxiv"):
         dataset_path = os.path.join(self.args.data_save_path, dataset_name)
         ogbn_official_path = os.path.join(self.args.data_save_path, "ogb-official-data")
-        Datasets=[]
 
         if dataset_name=="ogbn-products":
             decompress_gz(os.path.join(ogbn_official_path,"ogbn_products","mapping",'nodeidx2asin.csv.gz'),os.path.join(ogbn_official_path,"ogbn_products","mapping",'nodeidx2asin.csv'))
-            self.nodeid2contentid = pd.read_csv(os.path.join(ogbn_official_path,"ogbn_products","mapping",'nodeidx2asin.csv')).values #(2449029*2)
+            self.nodeid2contentid = pd.read_csv(os.path.join(ogbn_official_path,"ogbn_products","mapping",'nodeidx2asin.csv')) #(2449029*2)
             self.df = {"contentid":[],"title":[],"content":[]}
             for line in open(os.path.join(dataset_path,"trn.json")):
                 one_dict=json.loads(line)
@@ -161,42 +192,57 @@ class Gen_ogb_data():
                 self.df["contentid"].append(one_dict["uid"])
                 self.df["title"].append(one_dict["title"])
                 self.df["content"].append(one_dict["content"])
-            self.df["contentid"]=np.array(self.df["contentid"])
-
-            for i in range(2449029):
-                contentid = self.nodeid2contentid[i][1]
-                pos_id = np.where(contentid == self.df["contentid"])[0][0]
-                content = self.df["content"][pos_id]
-                title = self.df["title"][pos_id]
-                if content == "":
-                    content= " " 
-                slice_data = [title, content]
-                Datasets.append(slice_data)
+            self.df = pd.DataFrame(self.df)
+            self.df.columns = ["paperid", "title", "abs"]
+            self.nodeid2contentid.columns = ["nodeid", "paperid"]
+            data = pd.merge(self.nodeid2contentid, self.df, how="left", on="paperid")  
+            Datasets = data.values[:,2:]
 
         elif dataset_name=="ogbn-arxiv":
-            self.df = pd.read_csv(os.path.join(dataset_path,'titleabs.tsv'), sep='\t').values
+            self.df = pd.read_csv(os.path.join(dataset_path,'titleabs.tsv'), sep='\t')
             decompress_gz(os.path.join(ogbn_official_path,"ogbn_arxiv","mapping",'nodeidx2paperid.csv.gz'),os.path.join(ogbn_official_path,"ogbn_arxiv","mapping",'nodeidx2paperid.csv'))
-            self.nodeid2contentid = pd.read_csv(os.path.join(ogbn_official_path,"ogbn_arxiv","mapping",'nodeidx2paperid.csv')).values
-            for i in range(169343):
-                contentid = self.nodeid2contentid[i][1]
-                pos_id = np.where(contentid == np.array(self.df[:,0]))[0][0]
-                slice_data=self.df[pos_id].tolist()
-                slice_data = slice_data[0:]
-                Datasets.append(slice_data)
+            self.nodeid2contentid = pd.read_csv(os.path.join(ogbn_official_path,"ogbn_arxiv","mapping",'nodeidx2paperid.csv'))
+            self.df.columns = ["paperid", "title", "abs"]
+            self.nodeid2contentid.columns = ["nodeid", "paperid"]
+            data = pd.merge(self.nodeid2contentid, self.df, how="left", on="paperid")  
+            Datasets = data.values[:,2:]
 
+        elif dataset_name=="ogbn-papers100M":
+            abstract = pd.read_csv(os.path.join(dataset_path, "paperinfo","idx_abs.tsv"), sep='\t', header=None)
+            title = pd.read_csv(os.path.join(dataset_path, "paperinfo", "idx_title.tsv"), sep='\t', header=None)
+           
+            title.columns = ["ID", "Title"]
+            title["ID"] = title["ID"].astype(np.int64)
+            abstract.columns = ["ID", "Abstract"]
+            abstract["ID"] = abstract["ID"].astype(np.int64)
+            data = pd.merge(title, abstract, how="outer", on="ID", sort=True)
+            
+            paper_id_path_csv = os.path.join(ogbn_official_path,"ogbn_papers100M","mapping", "nodeidx2paperid.csv.gz")  
+            paper_ids = pd.read_csv(paper_id_path_csv, usecols=[0])
+            paper_ids.columns = ["ID"]
+
+            data.columns = ["ID", "Title", "Abstract"]
+            data["ID"] = data["ID"].astype(np.int64)
+            data = pd.merge(paper_ids, data, how="left", on="ID")  
+            Datasets = data.values[:,1:]
+        
         dataframe = pd.DataFrame(Datasets)
         dataframe.to_csv(os.path.join(dataset_path,f'{dataset_name}_title_content.csv'),index=False)
-        print(f"{dataset_name} text.csv has been saved!")
+        print(f"{dataset_name} title_content.csv has been saved!")
             
     def get_emb(self, dataset_name="ogbn-arxiv"):
         dataset_path = os.path.join(self.args.data_save_path, dataset_name)
-        if dataset_name in ["ogbn-arxiv","ogbn-products"]:
+        if dataset_name in ["ogbn-arxiv","ogbn-products","ogbn-papers100M"]:
             Datas = []
             data = pd.read_csv(os.path.join(dataset_path,f'{dataset_name}_title_content.csv')).values
             for k in range(data.shape[0]):
                 data_dict = {}
-                if pd.isnull(data[k][1]):
+                if pd.isnull(data[k][0]) and pd.isnull(data[k][1]):
+                    data_dict["text"] = " .  "
+                elif pd.isnull(data[k][1]):
                     data_dict["text"] = data[k][0]
+                elif pd.isnull(data[k][0]):
+                    data_dict["text"] = data[k][1]
                 else:
                     data_dict["text"] = data[k][0]+". "+data[k][1]
                 Datas.append(data_dict)
@@ -225,7 +271,6 @@ class Gen_ogb_data():
                         nodes_embed.append(embeddings[i].cpu().numpy().astype(self.args.dtype))
 
             nodes_embed = np.stack(nodes_embed,axis=0)
-            short_name = {"ogbn-papers100M":"100M","ogbn-arxiv":"arxiv","ogbn-products":"products"}
             np.save(os.path.join(dataset_path,f"{short_name[dataset_name]}_embedding_{self.args.Model}_{self.args.dtype}.npy"), nodes_embed)
             print(f"{short_name[dataset_name]}_embedding_{self.args.Model}_{self.args.dtype}.npy has been saved!")
         
@@ -255,11 +300,8 @@ class Gen_ogb_data():
             graph = graph.remove_self_loop().add_self_loop()
         split_idx = self.dgl_dataset.get_idx_split()
 
-        if dataset_name == "ogbn-papers100M":
-            save_path = os.path.join(dataset_path, f"{dataset_name}-lc-ego-graphs-256.pt") 
-        else:
-            save_path = os.path.join(dataset_path, f"{dataset_name}-lc-ego-graphs-256.pt")
-
+        save_path = os.path.join(dataset_path, f"{dataset_name}-lc-ego-graphs-256.pt") 
+       
         N = graph.num_nodes()  
         edge_index = graph.edges()
         edge_index = (edge_index[0].numpy(), edge_index[1].numpy())
@@ -292,6 +334,64 @@ class Gen_ogb_data():
         torch.save(ego_graphs, save_path)
         print(f"{dataset_name}-lc-ego-graphs-256.pt has been saved!")
 
+    def get_graph_label_split_scale(self, dataset_name="ogbn-arxiv"):
+        dataset_path = os.path.join(self.args.data_save_path, dataset_name)
+        #graph
+        graph, label = self.dgl_dataset[0]
+        graph = dgl.graph((graph.edges()[0].to(torch.int32), graph.edges()[1].to(torch.int32)), num_nodes=graph.number_of_nodes())
+        dgl.save_graphs(os.path.join(dataset_path,f"dgl_graph_{short_name[dataset_name]}_int32"),graph)
+        #label
+        if dataset_name in ["ogbn-arxiv","ogbn-products"]:
+            torch.save(label.reshape(-1), os.path.join(dataset_path, f'{short_name[dataset_name]}_label.pt'))
+        elif dataset_name in ["ogbn-papers100M"]:
+            shutil.copy(os.path.join(ogbn_official_path,"ogbn_papers100M","raw", "node-label.npz")  , os.path.join(dataset_path, "100M-node-label.npz"))
+        #split
+        if dataset_name in ["ogbn-arxiv","ogbn-products"]:
+            split_idx = self.dgl_dataset.get_idx_split()
+            torch.save(split_idx, os.path.join(dataset_path, f'{short_name[dataset_name]}_split.pt'))
+        elif dataset_name in ["ogbn-papers100M"]:
+            for n in ["train","test","valid"]:
+                shutil.copy(os.path.join(ogbn_official_path,"ogbn_papers100M","split", "time", f"{n}.csv.gz")  , os.path.join(dataset_path, f"100M_{n}_split.csv.gz"))
+        #scale 
+        mean, std = norm_feats(np.load(os.path.join(dataset_path,f"{short_name[dataset_name]}_embedding_{self.args.Model}_{self.args.dtype}.npy")))
+        torch.save((torch.from_numpy(mean), torch.from_numpy(std)), os.path.join(dataset_path, f'{dataset_name}_stats.pt')) 
+      
+
+    def reduce_100M_memory_cost(self,dataset_name):
+        dataset_path = os.path.join(self.args.data_save_path, dataset_name)
+        #cal repeat node:
+        if os.path.exists(os.path.join(dataset_path,"ogbn-papers100M-lc-ego-graphs-256-int32.npy")):
+            ego_graph = np.load(os.path.join(dataset_path,"ogbn-papers100M-lc-ego-graphs-256-int32.npy"))
+            ego_graph = convert_1d_array_to_ego_graph_list(ego_graph)
+        else:
+            assert os.path.exists(os.path.join(dataset_path,"ogbn-papers100M-lc-ego-graphs-256.pt"))
+            ego_graph = torch.load(os.path.join(dataset_path,"ogbn-papers100M-lc-ego-graphs-256.pt"))
+            ego_graph = ego_graph[0]+ego_graph[1]+ego_graph[2]
+        unique_numbers = set()
+        for g in ego_graph:
+            unique_numbers.update(g)
+        unique_numbers_list = sorted(list(unique_numbers))
+        unique_numbers_list = np.array(unique_numbers_list)
+        np.save(os.path.join(dataset_path,"used_node.npy"), unique_numbers_list)
+        #reduce feature
+        feat = np.load(os.path.join(dataset_path,f"{short_name[dataset_name]}_embedding_{self.args.Model}_{self.args.dtype}.npy"))
+        feat = feat[unique_numbers_list]
+        np.save(os.path.join(dataset_path,f"{short_name[dataset_name]}_embedding_{self.args.Model}_{self.args.dtype}_used.npy"), feat)
+        #reduce graph
+        graph = dgl.load_graphs(os.path.join(dataset_path,f"dgl_graph_{short_name[dataset_name]}_int32"))[0][0]
+        src, dst = graph.edges()
+        src = src.numpy()
+        dst = dst.numpy()
+        mask1 = np.isin(src, unique_numbers_list)
+        mask2 = np.isin(dst, unique_numbers_list)
+        tot_mask = mask1*mask2
+        new_src = src[tot_mask]
+        new_dst = dst[tot_mask]
+        new_g = dgl.DGLGraph()
+        new_g.add_nodes(graph.number_of_nodes())
+        new_g.add_edges(new_src,new_dst)
+        dgl.save_graphs(os.path.join(dataset_path,f"dgl_graph_{short_name[dataset_name]}_int32_used"),new_g)
+        
 
 class Gen_fewshot_data():
     def __init__(self,args):
@@ -450,8 +550,8 @@ class Gen_fewshot_data():
         model.eval()
         nodes_embed=[]
         with torch.no_grad():
-            for data in text:
-                batch = model_tokenizer(data)
+            for d in text:
+                batch = model_tokenizer(d)
                 batch = {k: v.to(self.args.device) for k, v in batch.items()}
                 outputs = model(**batch)
                 embeddings = self.average_pool(outputs.last_hidden_state, batch['attention_mask'])
@@ -494,10 +594,4 @@ if __name__ == "__main__":
         elif dn in ["FB15K237","Cora","WN18RR"]:
             args.dataset_name = dn
             Gen_fewshot_data(args)
-    
-    
-
-
-    
-    
 
