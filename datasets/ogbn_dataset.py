@@ -90,7 +90,7 @@ def load_large_dataset(dataset_name, data_dir, ego_graphs_file_path, no_scale, m
         used_node_path = os.path.join(data_dir, dataset_name, "used_node.npy")
         scale_path = os.path.join(data_dir, dataset_name, f"{dataset_name}_stats.pt") 
         #graph
-        graph_path = os.path.join(dataset_path, f"dgl_graph_100M_int32_used")
+        graph_path = os.path.join(data_dir, dataset_name, f"dgl_graph_100M_int32_used")
         graph =  dgl.load_graphs(graph_path)[0][0]
         if "year" in graph.ndata:
             del graph.ndata["year"]
@@ -113,7 +113,6 @@ def load_large_dataset(dataset_name, data_dir, ego_graphs_file_path, no_scale, m
                 feats = center_feats(feats)
     
         feats = papers100M_feat_type(feats, used_node_path)
-
         #split
         split_idx={}
         split_len={}

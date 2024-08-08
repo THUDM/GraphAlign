@@ -4,13 +4,15 @@ Paper link: [arxiv](https://arxiv.org/abs/2406.02953)
 
 ## Dependencies
 
-1.  PyTorch >= v2.1.1 and CUDA >= 11.4. Older and newer pytorch versions are both competable.
+1. PyTorch >= v2.1.1 and CUDA >= 11.4. Older and newer pytorch versions are both competable.
 
 2. [dgl](https://www.dgl.ai/pages/start.html) >= 0.7.2
 
 3. [localclustering](https://github.com/kfoynt/LocalGraphClustering) (optional for data preprocessing)
 
 4. Run `./setup.sh` in Treminal to install other dependencies.
+   
+5. You can use wandb to log loss curves, test accuary, etc.
 
 ## Dataset Preprocessing
 

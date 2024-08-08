@@ -174,10 +174,11 @@ class ModelTrainer:
         # need to pretrain
         if not args.load_model:
             if args.deepspeed:
-                ckpt_dir = os.path.join(args.save_model_path, "ds_" + get_save_path_name(args,pretrain_seed))
+                ckpt_dir = os.path.join(args.data_dir ,args.save_model_path, "ds_" + get_save_path_name(args,pretrain_seed))
             else:
-                ckpt_dir = args.save_model_path
-            os.makedirs(args.save_model_path, exist_ok=True)
+                ckpt_dir = os.path.join(args.data_dir ,args.save_model_path)   
+            os.makedirs(args.data_dir, exist_ok=True)
+            os.makedirs(os.path.join(args.data_dir ,args.save_model_path), exist_ok=True)
             os.makedirs(ckpt_dir, exist_ok=True)
            
             self.pretrain(ckpt_dir)
@@ -185,13 +186,13 @@ class ModelTrainer:
             if args.save_model:
                 if args.deepspeed:
                     if dist.get_rank() == 0:
-                        save_path = os.path.join(args.save_model_path, get_save_path_name(args,pretrain_seed) + ".pt")
+                        save_path = os.path.join(ckpt_dir, get_save_path_name(args,pretrain_seed) + ".pt")
                         model = self.model.module.cpu()
                         print(f"Saving model to {save_path}")
                         torch.save(model.state_dict(), save_path)
                 else:
                     model = self.model.cpu()
-                    save_path = os.path.join(args.save_model_path, get_save_path_name(args,pretrain_seed) + ".pt")
+                    save_path = os.path.join(ckpt_dir, get_save_path_name(args,pretrain_seed) + ".pt")
                     print(f"Saveing model to {save_path}")
                     torch.save(model.state_dict(), save_path)
         else:
