@@ -16,7 +16,6 @@ def train_eval(args):
             acc = trainer.train_eval(pretrain_seed=pretrain_seed)
             acc_list = acc_list+acc
         final_test_acc, final_test_acc_std = np.mean(acc_list), np.std(acc_list)
-        print("ALL acc:", acc_list)
         print(f"Fin Average final-test-acc: {final_test_acc:.4f}±{final_test_acc_std:.4f}", end="")
         wandb.summary[f'Fin Average final-test-acc'] = final_test_acc
         wandb.summary[f'Fin Average final-test-acc-std'] = final_test_acc_std

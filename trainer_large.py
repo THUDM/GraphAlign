@@ -186,7 +186,7 @@ class ModelTrainer:
             if args.save_model:
                 if args.deepspeed:
                     if dist.get_rank() == 0:
-                        save_path = os.path.join(ckpt_dir, get_save_path_name(args,pretrain_seed) + ".pt")
+                        save_path = os.path.join(args.data_dir ,args.save_model_path, get_save_path_name(args,pretrain_seed) + ".pt")
                         model = self.model.module.cpu()
                         print(f"Saving model to {save_path}")
                         torch.save(model.state_dict(), save_path)
