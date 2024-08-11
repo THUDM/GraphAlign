@@ -4,15 +4,15 @@ Paper link: [arxiv](https://arxiv.org/abs/2406.02953)
 
 ## Dependencies
 
-1. PyTorch >= v2.1.1 and CUDA >= 11.4. Older and newer pytorch versions are both competable.
+1. PyTorch >= v2.1.1 and CUDA >= 11.4 are recommended.
 
 2. [dgl](https://www.dgl.ai/pages/start.html) >= 0.7.2
 
 3. [localclustering](https://github.com/kfoynt/LocalGraphClustering) (optional for data preprocessing)
 
-4. Run `./setup.sh` in Treminal to install other dependencies.
+4. Run `bash setup.sh` to install necessary dependences, including [fmoe](https://github.com/laekov/fastmoe).
    
-5. You can use wandb to log loss curves, test accuary, etc.
+5. You can use `wandb` to monitor the training process.
 
 ## Dataset Preprocessing
 
@@ -35,9 +35,10 @@ To reproduce individually pretraining results, run: (first param is device, seco
 bash scripts/individually_pretrain.sh 0 your/path/to/save/data
 ```
 
-To reproduce GraphAlign results, run: (first param is device, e.g. "0,1" means using device 0 and 1, second param is path/to/save/data)
+To reproduce GraphAlign results,
 ```bash
 # For GNN pretraining
+# Multi-GPU training is supported. <gpu_ids> can be set as "0,1" or more gpus.
 bash scripts/graphalign.sh <gpu_ids> <path/to/data>
 
 # Evaluation after GNN pretraining checkpoint
@@ -46,7 +47,7 @@ bash scripts/evaluation.sh <gpu_id> <path/to/data> <path/to/gnn_ckpt>
 
 To reproduce few-shot results:
 ```bash
-# Evaluate the pretraing GNN in few-shot classification
+# Evaluate the pretraining GNN in few-shot classification
 bash scripts/few_shot_eval.sh <gpu_id> <path/to/data> </path/to/gnn_ckpt>
 ```
 
@@ -95,6 +96,7 @@ bash scripts/few_shot_eval.sh <gpu_id> <path/to/data> </path/to/gnn_ckpt>
   | E5-emb-only           | 65.67±7.02        | 47.13±8.68        | 59.71±6.71  | 41.58±8.11  | 56.52±9.65    | 41.53±9.36    | 58.43±6.94      | 42.06±7.11      |
 
 ## Citing
+If you find this work is helpful to your research, please consider citing our paper:
 
 ```latex
 @article{hou2024graphalign,
