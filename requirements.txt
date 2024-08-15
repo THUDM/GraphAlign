@@ -12,5 +12,3 @@ tqdm
 sentence-transformers
 gdown
 scipy
-
-install localclustering !

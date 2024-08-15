@@ -10,7 +10,7 @@ Paper link: [arxiv](https://arxiv.org/abs/2406.02953)
 
 3. [localclustering](https://github.com/kfoynt/LocalGraphClustering) (optional for data preprocessing)
 
-4. Run `bash setup.sh` to install necessary dependences, including [fmoe](https://github.com/laekov/fastmoe).
+4. Run `bash setup.sh` to install necessary dependences, including [fmoe](https://github.com/zhan72/fastmoe).
    
 5. You can use `wandb` to monitor the training process.
 
