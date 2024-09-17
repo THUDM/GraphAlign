@@ -28,6 +28,10 @@ For Large scale graphs, before starting mini-batch training, you'll need to gene
 
 And we also provide the pre-generated local clusters which can be downloaded [here](https://drive.google.com/drive/folders/1f736S0pl_ypmh---b_pM3U1tK0PfFV0x?usp=sharing) for usage.
 
+## Pretrained Model Download
+
+You can download our pretrainded model [here](https://drive.google.com/drive/folders/1wpTE40SPVwysw8e30I-NJnZiI2Y-rADt?usp=drive_link).
+
 ## Quick Start
 
 To reproduce individually pretraining results, run: (first param is device, second param is path/to/save/data)
