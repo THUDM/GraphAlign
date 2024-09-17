@@ -30,7 +30,13 @@ And we also provide the pre-generated local clusters which can be downloaded [he
 
 ## Pretrained Model Download
 
-You can download our pretrainded model [here](https://drive.google.com/drive/folders/1wpTE40SPVwysw8e30I-NJnZiI2Y-rADt?usp=drive_link).
+You can download our pretrainded model [here](https://drive.google.com/drive/folders/1wpTE40SPVwysw8e30I-NJnZiI2Y-rADt?usp=drive_link) and run below code to eval our model.
+```bash
+# Eval download pretrained model (linear probe result)
+bash scripts/evaluation.sh <gpu_id> <path/to/data> <path/to/download/gnn_ckpt>
+# Eval download pretrained model (few-shot result) 
+bash scripts/few_shot_eval.sh <gpu_id> <path/to/data> <path/to/download/gnn_ckpt>
+```
 
 ## Quick Start
 
