@@ -1,0 +1,14 @@
+numpy 
+pandas
+deepspeed
+ogb
+wandb
+dm-tree
+transformers
+torchtext
+torchdata
+wget
+tqdm
+sentence-transformers
+gdown
+scipy
